@@ -124,7 +124,7 @@
             
             // 公開用GitHub Pagesサーバー環境への一発QRコード自動組込
             new QRCode(document.getElementById("qrcode-canvas"), {
-             text: "https://github.io",
+            text: window.location.href,
                 width: 200,
                 height: 200,
                 colorDark : "#1e293b",
