@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>清掃業務実施完了報告書作成システム</title>
+    <!-- Tailwind CSS (モバイルUIデザイン用) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ExcelJS (ブラウザ側でリッチなExcelファイルを生成するライブラリ) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+    <!-- QRCode.js (ページ内にQRコードを強制表示するためのライブラリ) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .photo-trigger { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen pb-12 select-none">
+
+    <!-- ヘッダー -->
+    <header class="bg-slate-800 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
+            <h1 class="text-sm font-bold flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                報告書作成システム V11 (QRコード内蔵版)
+            </h1>
+            <span id="auto-save-status" class="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-slate-300">自動保存済</span>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="max-w-md mx-auto px-3 mt-4 mb-8">
+
+        <!-- ナビゲーションタブ -->
+        <div class="flex bg-white rounded-lg shadow-sm p-1 mb-4 border border-slate-200">
+            <button onclick="switchTab('basic-tab')" id="btn-basic-tab" class="flex-1 py-2 text-[11px] font-bold rounded-md bg-slate-100 text-slate-800 transition-all">
+                ① 表紙設定
+            </button>
+            <button onclick="switchTab('records-tab')" id="btn-records-tab" class="flex-1 py-2 text-[11px] font-bold rounded-md text-slate-600 hover:text-slate-900 transition-all">
+                ② 記録(3点連拍)
+            </button>
+            <button onclick="switchTab('export-tab')" id="btn-export-tab" class="flex-1 py-2 text-[11px] font-bold rounded-md text-slate-600 hover:text-slate-900 transition-all">
+                ③ 出力
+            </button>
+            <button onclick="switchTab('qr-tab')" id="btn-qr-tab" class="flex-1 py-2 text-[11px] font-bold rounded-md text-slate-600 hover:text-slate-900 transition-all bg-amber-50 text-amber-700">
+                ④ 携帯連携
+            </button>
+        </div>
+
+        <!-- タブ1: 表紙情報 -->
+        <div id="basic-tab" class="tab-content active space-y-4">
+            <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200 space-y-4">
+                <h2 class="text-sm font-bold text-slate-700 border-b pb-2">表紙シートの項目入力</h2>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">提出先（御中）</label>
+                    <input type="text" id="client-name" oninput="updateBasicInfo()" placeholder="例: ビル管理株式会社" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-slate-800">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">◆ テナント名称 <span class="text-red-500">*</span></label>
+                    <input type="text" id="tenant-name" oninput="updateBasicInfo()" placeholder="例: グランドハイツ江戸川" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-slate-800">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">◆ 業務名称</label>
+                    <input type="text" id="work-name" oninput="updateBasicInfo()" value="床面清掃及び照明" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-slate-800">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">◆ 業務実施日</label>
+                    <input type="text" id="work-date" oninput="updateBasicInfo()" value="2026年6月21日（日）" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-slate-800">
+                </div>
+            </div>
+            <button onclick="switchTab('records-tab')" class="w-full bg-slate-800 text-white font-bold py-3 rounded-xl shadow-md text-sm">清掃写真の撮影へ進む →</button>
+        </div>
+
+        <!-- タブ2: 清掃記録 -->
+        <div id="records-tab" class="tab-content space-y-4">
+            <div id="cleaning-items-container" class="space-y-4"></div>
+            <button onclick="addNewLocation()" class="w-full bg-slate-200 text-slate-700 font-bold py-3 rounded-xl border-2 border-dashed border-slate-300 text-xs">+ 新しい清掃場所（シート）を追加</button>
+            <button onclick="switchTab('export-tab')" class="w-full bg-slate-800 text-white font-bold py-3 rounded-xl shadow-md text-sm">完了報告Excelの生成へ進む →</button>
+        </div>
+
+        <!-- タブ3: 出力 -->
+        <div id="export-tab" class="tab-content space-y-4">
+            <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200 text-center space-y-4">
+                <div class="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-slate-800">Excel報告書の出力準備完了</h2>
+                    <p class="text-xs text-slate-500 mt-1">「表紙」シートとエリア毎の「写真」シートが別タブに分かれたExcelを出力します。</p>
+                </div>
+                <button onclick="generateExcelReport()" class="w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-md text-sm active:bg-emerald-700">マルチシートExcelをダウンロード</button>
+            </div>
+            <button onclick="confirmClearAll()" class="w-full bg-white text-rose-600 font-bold py-2.5 rounded-xl border border border-rose-200 text-xs">すべての撮影データをクリア</button>
+        </div>
+
+        <!-- タブ4: 携帯連携二维码 -->
+        <div id="qr-tab" class="tab-content space-y-4">
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-slate-200 text-center space-y-4">
+                <h2 class="text-sm font-bold text-slate-700">📱 手机扫码一键同步直接使用</h2>
+                <p class="text-xs text-slate-500">请直接用 iPhone 的<b>自带相机</b>扫描下方二维码，即可瞬间在手机 Safari 浏览器中打开完整的全功能应用，无需连接电脑！</p>
+                <div class="flex justify-center p-4 bg-slate-50 rounded-xl border border-slate-100 max-w-[240px] mx-auto">
+                    <div id="qrcode-canvas"></div>
+                </div>
+                <p class="text-[11px] text-amber-600 font-bold">【极速安装】扫码打开后，在 Safari 底部点击“分享方框箭头”，选择「添加到主屏幕」，即可一键变为手机桌面 App 软件！</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const defaultAreas = ["廊下", "エレベーター前", "アプローチ", "階段", "フリースペース"];
+        let appState = { client: '', tenant: '', workName: '床面清掃及び照明', workDate: '2026年6月21日（日）', items: [] };
+
+        window.onload = function() {
+            const saved = localStorage.getItem('excel_multisheet_report_data_v11');
+            if (saved) { try { appState = JSON.parse(saved); } catch (e) { initDefault(); } } else { initDefault(); }
+
+            document.getElementById('client-name').value = appState.client || '';
+            document.getElementById('tenant-name').value = appState.tenant || '';
+            document.getElementById('work-name').value = appState.workName || '';
+            document.getElementById('work-date').value = appState.workDate || '';
+
+            renderCleaningItems();
+            
+            // 公開用GitHub Pagesサーバー環境への一発QRコード自動組込
+            new QRCode(document.getElementById("qrcode-canvas"), {
+                text: "https://kowa9178.github.io/cleaning-report/",
+                width: 200,
+                height: 200,
+                colorDark : "#1e293b",
+                colorLight : "#f8fafc",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        };
+
+        function initDefault() {
+            appState.items = defaultAreas.map((area, idx) => ({ id: Date.now() + idx, areaName: area, beforeImg: null, duringImg: null, afterImg: null }));
+        }
+
+        function save() {
+            localStorage.setItem('excel_multisheet_report_data_v11', JSON.stringify(appState));
+            document.getElementById('auto-save-status').textContent = "自動保存済";
+        }
+
+        function updateBasicInfo() {
+            appState.client = document.getElementById('client-name').value;
+            appState.tenant = document.getElementById('tenant-name').value;
+            appState.workName = document.getElementById('work-name').value;
+            appState.workDate = document.getElementById('work-date').value;
+            document.getElementById('auto-save-status').textContent = "保存中...";
+            save();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            window.scrollTo(0, 0);
+        }
+
+        function renderCleaningItems() {
+            const container = document.getElementById('cleaning-items-container');
+            container.innerHTML = '';
+
+            appState.items.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-xl shadow-sm p-4 border border-slate-200 space-y-3";
+                card.innerHTML = `
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <span class="text-xs font-bold text-slate-400">シート ${index + 2}</span>
+                        <input type="text" value="${item.areaName}" oninput="updateAreaName(${item.id}, this.value)" class="font-bold text-slate-700 bg-transparent border-b border-dashed border-slate-300 focus:border-slate-800 focus:outline-none text-sm px-1 py-0.5 w-2/3 text-center">
+                        <button onclick="removeItem(${item.id})" class="text-slate-400 hover:text-rose-500 p-1">削除</button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="photo-trigger">
+                            <span class="block text-[10px] font-bold text-slate-500 mb-1">作業前</span>
+                            <label for="cam-before-${item.id}" class="block h-24 border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50 flex items-center justify-center cursor-pointer hover:bg-slate-100">
+                                ${item.beforeImg ? `<img src="${item.beforeImg}" class="w-full h-full object-cover">` : `<span class="text-[10px] text-blue-600 font-bold block">撮影</span>`}
+                            </label>
+                            <input type="file" id="cam-before-${item.id}" accept="image/*" capture="environment" class="hidden" onchange="processPhoto(this, ${item.id}, 'beforeImg')">
+                        </div>
+                        <div class="photo-trigger">
+                            <span class="block text-[10px] font-bold text-slate-500 mb-1">作業中</span>
+                            <label for="cam-during-${item.id}" class="block h-24 border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50 flex items-center justify-center cursor-pointer hover:bg-slate-100">
+                                ${item.duringImg ? `<img src="${item.duringImg}" class="w-full h-full object-cover">` : `<span class="text-[10px] text-blue-600 font-bold block">撮影</span>`}
+                            </label>
+                            <input type="file" id="cam-during-${item.id}" accept="image/*" capture="environment" class="hidden" onchange="processPhoto(this, ${item.id}, 'duringImg')">
+                        </div>
+                        <div class="photo-trigger">
+                            <span class="block text-[10px] font-bold text-slate-500 mb-1">作業後</span>
+                            <label for="cam-after-${item.id}" class="block h-24 border-2 border-slate-300 rounded-lg overflow-hidden bg-slate-50 flex items-center justify-center cursor-pointer hover:bg-slate-100">
+                                ${item.afterImg ? `<img src="${item.afterImg}" class="w-full h-full object-cover">` : `<span class="text-[10px] text-blue-600 font-bold block">撮影</span>`}
+                            </label>
+                            <input type="file" id="cam-after-${item.id}" accept="image/*" capture="environment" class="hidden" onchange="processPhoto(this, ${item.id}, 'afterImg')">
+                        </div>
+                    </div>`;
+                container.appendChild(card);
+            });
+        }
+
+        function addNewLocation() {
+            appState.items.push({ id: Date.now(), areaName: '新規エリア', beforeImg: null, duringImg: null, afterImg: null });
+            renderCleaningItems();
+            save();
+        }
+
+        function updateAreaName(id, val) {
+            const item = appState.items.find(i => i.id === id);
+            if (item) { item.areaName = val; save(); }
+        }
+
+        function removeItem(id) {
+            if (confirm("このエリアを削除しますか？")) {
+                appState.items = appState.items.filter(i => i.id !== id);
+                renderCleaningItems();
+                save();
+            }
+        }
+
+        function processPhoto(input, id, key) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const WIDTH = 640; 
+                    const scale = WIDTH / img.width;
+                    canvas.width = WIDTH;
+                    canvas.height = img.height * scale;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    const base64 = canvas.toDataURL('image/jpeg', 0.75);
+                    const item = appState.items.find(i => i.id === id);
+                    if (item) {
+                        item[key] = base64;
+                        renderCleaningItems();
+                        save();
+                    }
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function confirmClearAll() {
+            if (confirm("すべてのデータをクリアしますか？")) {
+                localStorage.removeItem('excel_multisheet_report_data_v11');
+                initDefault();
+                renderCleaningItems();
+                save();
+                switchTab('basic-tab');
+            }
+        }
+
+        async function generateExcelReport() {
+            if (!appState.tenant) { alert("テナント名称を入力してください。"); switchTab('basic-tab'); return; }
+            const workbook = new ExcelJS.Workbook();
+            
+            const fontGothicBold = { name: 'MS Gothic', size: 14, bold: true };
+            const fontTitle = { name: 'MS Gothic', size: 24, bold: true };
+            const fontBody = { name: 'MS Gothic', size: 11 };
+            const borderBottomThick = { bottom: { style: 'medium', color: { argb: 'FF000000' } } };
+            const borderDouble = {
+                top: { style: 'double', color: { argb: 'FF000000' } }, left: { style: 'double', color: { argb: 'FF000000' } },
+                bottom: { style: 'double', color: { argb: 'FF000000' } }, right: { style: 'double', color: { argb: 'FF000000' } }
+            };
+
+            const coverSheet = workbook.addWorksheet('表紙');
+            coverSheet.views = [{ showGridLines: true }];
+            coverSheet.columns = [{ width: 62 }, { width: 28 }];
+            coverSheet.addRow([]); coverSheet.addRow([]);
+            
+            const clientCell = coverSheet.getCell('A4');
+            clientCell.value = `${appState.client || '　　　　'} 御中`;
+            clientCell.font = fontGothicBold;
+            coverSheet.getCell('A4').border = borderBottomThick;
+
+            coverSheet.mergeCells('A8:B9');
+            const titleCell = coverSheet.getCell('A8');
+            titleCell.value = '清掃業務実施完了報告書';
+            titleCell.font = fontTitle;
+            titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+            for(let r=8; r<=9; r++) { for(let c=1; c<=2; c++) { coverSheet.getCell(r, c).border = borderDouble; } }
+
+            const metaRows = [
+                { label: '◆ ﾃ ﾅ ﾝ ﾄ 名 称', value: appState.tenant, row: 14 },
+                { label: '◆ 業 務 名 称', value: appState.workName, row: 16 },
+                { label: '◆ 業 務 実 施 日', value: appState.workDate, row: 18 }
+            ];
+            metaRows.forEach(meta => {
+                coverSheet.getCell(`A${meta.row}`).value = meta.label;
+                coverSheet.getCell(`A${meta.row}`).font = fontGothicBold;
+                const valCell = coverSheet.getCell(`B${meta.row}`);
+                valCell.value = meta.value || '';
+                valCell.font = fontBody;
+                valCell.border = { bottom: { style: 'thin', color: { argb: 'FF000000' } } };
+            });
+
+            let photoGlobalIdx = 1;
+            appState.items.forEach((item) => {
+                const safeSheetName = (item.areaName || 'エリア').replace(/[\\*?:\/\[\]]/g, '').substring(0, 30);
+                const photoSheet = workbook.addWorksheet(safeSheetName);
+                photoSheet.views = [{ showGridLines: true }];
+                photoSheet.columns = [{ key: 'photo', width: 62 }, { key: 'info', width: 28 }];
+                let currentExcelRow = 2;
+                const steps = [{ label: '作業前', img: item.beforeImg }, { label: '作業中', img: item.duringImg }, { label: '作業後', img: item.afterImg }];
+                steps.forEach((step) => {
+                    photoSheet.getRow(currentExcelRow).height = 145;
+                    photoSheet.getCell(`A${currentExcelRow}`).border = { top: { style: 'thin', color: { argb: 'FF000000' } }, left: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'thin', color: { argb: 'FF000000' } }, right: { style: 'thin', color: { argb: 'FF000000' } } };
+                    photoSheet.getCell(`B${currentExcelRow}`).border = { top: { style: 'medium', color: { argb: 'FF000000' } } };
+                    const infoCell = photoSheet.getCell(`B${currentExcelRow}`);
+                    infoCell.value = `No.${photoGlobalIdx++}\n\n${step.label}\n\n${item.areaName}\n\n-----------------\n-----------------\n-----------------`;
+                    infoCell.font = fontBody; infoCell.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+                    if (step.img) { try { const imageId = workbook.addImage({ base64: step.img, extension: 'jpeg' }); photoSheet.addImage(imageId, { tl: { col: 0.02, row: currentExcelRow - 1 + 0.02 }, ext: { width: 435, height: 185 }, editAs: 'oneCell' }); } catch (e) {} }
+                    currentExcelRow += 2;
+                });
+            });
+
+            try {
+                const buffer = await workbook.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `清掃業務実施完了報告書_${appState.tenant}.xlsx`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (error) { alert(error.message); }
+        }
+    </script>
+</body>
+</html>
